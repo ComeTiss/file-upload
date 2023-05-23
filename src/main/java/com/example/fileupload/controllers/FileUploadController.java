@@ -2,6 +2,7 @@ package com.example.fileupload.controllers;
 
 import com.example.fileupload.dto.ErrorResponse;
 import com.example.fileupload.dto.FileUploadResponse;
+import com.example.fileupload.dto.FilesUploadResponse;
 import com.example.fileupload.exceptions.FileStorageException;
 import com.example.fileupload.exceptions.InvalidFileException;
 import com.example.fileupload.service.FileMetadata;
@@ -11,6 +12,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.util.List;
 
 @Slf4j
 @RestController
@@ -23,14 +26,15 @@ public class FileUploadController {
     @PostMapping
     public FileUploadResponse uploadFile(@RequestParam("file") MultipartFile file) {
         log.info("Uploading file: {}", file.getOriginalFilename());
-        String fileDownloadUri = fileService.storeFile(file);
+        FileMetadata fileMetadata = fileService.storeFile(file);
+        return new FileUploadResponse(fileMetadata);
+    }
 
-        return new FileUploadResponse(new FileMetadata(
-                file.getOriginalFilename(),
-                fileDownloadUri,
-                file.getContentType(),
-                file.getSize()
-        ));
+    @PostMapping("/multiple")
+    public FilesUploadResponse uploadFiles(@RequestParam("files") MultipartFile[] files) {
+        log.info("Uploading {} files", files.length);
+        List<FileMetadata> filesMetadata = fileService.storeFiles(files);
+        return new FilesUploadResponse(filesMetadata);
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

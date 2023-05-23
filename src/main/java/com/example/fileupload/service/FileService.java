@@ -11,7 +11,6 @@ import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.io.File;
 import java.net.MalformedURLException;
@@ -20,9 +19,12 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Service
@@ -43,7 +45,7 @@ public class FileService {
         }
     }
 
-    public String storeFile(MultipartFile file) throws FileStorageException {
+    public FileMetadata storeFile(MultipartFile file) throws FileStorageException {
         if (isInvalid(file)) {
             throw new InvalidFileException("Invalid file uploaded");
         }
@@ -52,12 +54,37 @@ public class FileService {
             Path fileTargetLocation = fileStorageLocation.resolve(filenameClean);
             Files.copy(file.getInputStream(), fileTargetLocation);
 
-            return buildFileDownloadUri(filenameClean);
+            return new FileMetadata(
+                    file.getOriginalFilename(),
+                    buildFileDownloadUri(filenameClean),
+                    file.getContentType(),
+                    file.getSize()
+            );
         } catch(FileAlreadyExistsException exception) {
             throw new InvalidFileException("An exception occurred: the file already exists");
         } catch (Exception exception) {
             log.error("An exception occurred while uploading file: {}", exception.getMessage());
             throw new FileStorageException(exception.getMessage());
+        }
+    }
+
+    public List<FileMetadata> storeFiles(MultipartFile[] files) {
+        List<CompletableFuture<FileMetadata>> storeFileFutures = new ArrayList<>();
+        for (MultipartFile file : files) {
+            storeFileFutures.add(CompletableFuture.supplyAsync(() -> storeFile(file)));
+        }
+        try {
+           return CompletableFuture.allOf(storeFileFutures.toArray(new CompletableFuture[storeFileFutures.size()]))
+                     .thenApply(future -> {
+                         return storeFileFutures
+                             .stream()
+                             .map(CompletableFuture::join)
+                             .toList();
+                     })
+                    .get();
+        } catch (InterruptedException | ExecutionException exception) {
+            log.error("An error occurred while storing files in parallel: {}", exception.getMessage());
+            throw new FileStorageException("An error occurred while storing files in parallel");
         }
     }
 
@@ -96,9 +123,6 @@ public class FileService {
     }
 
     private String buildFileDownloadUri(String filename) {
-        return ServletUriComponentsBuilder.fromCurrentContextPath()
-                .path("/api/downloadFile/")
-                .path(filename)
-                .toUriString();
+        return "/api/download/" + filename;
     }
 }
