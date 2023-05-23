@@ -1,4 +1,4 @@
-package com.example.fileupload;
+package com.example.fileupload.configs;
 
 import lombok.Getter;
 import org.springframework.beans.factory.annotation.Value;

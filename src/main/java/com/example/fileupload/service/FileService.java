@@ -1,6 +1,6 @@
 package com.example.fileupload.service;
 
-import com.example.fileupload.FileConfiguration;
+import com.example.fileupload.configs.FileConfiguration;
 import com.example.fileupload.exceptions.FileNotFoundException;
 import com.example.fileupload.exceptions.FileStorageException;
 import com.example.fileupload.exceptions.InvalidFileException;
