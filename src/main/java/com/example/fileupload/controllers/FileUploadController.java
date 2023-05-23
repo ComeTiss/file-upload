@@ -4,6 +4,7 @@ import com.example.fileupload.dto.ErrorResponse;
 import com.example.fileupload.dto.FileUploadResponse;
 import com.example.fileupload.exceptions.FileStorageException;
 import com.example.fileupload.exceptions.InvalidFileException;
+import com.example.fileupload.service.FileMetadata;
 import com.example.fileupload.service.FileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,12 +25,12 @@ public class FileUploadController {
         log.info("Uploading file: {}", file.getOriginalFilename());
         String fileDownloadUri = fileService.storeFile(file);
 
-        return new FileUploadResponse(
+        return new FileUploadResponse(new FileMetadata(
                 file.getOriginalFilename(),
                 fileDownloadUri,
                 file.getContentType(),
                 file.getSize()
-        );
+        ));
     }
 
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)

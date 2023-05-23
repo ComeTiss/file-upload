@@ -1,19 +1,28 @@
 package com.example.fileupload.service;
 
 import com.example.fileupload.FileConfiguration;
+import com.example.fileupload.exceptions.FileNotFoundException;
 import com.example.fileupload.exceptions.FileStorageException;
 import com.example.fileupload.exceptions.InvalidFileException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
+import java.io.File;
+import java.net.MalformedURLException;
+import java.net.URLConnection;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -49,6 +58,34 @@ public class FileService {
         } catch (Exception exception) {
             log.error("An exception occurred while uploading file: {}", exception.getMessage());
             throw new FileStorageException(exception.getMessage());
+        }
+    }
+
+    public List<FileMetadata> getAll() {
+        File fileStorage = new File(fileStorageLocation.toString());
+        File[] files = fileStorage.listFiles();
+
+        return Arrays.stream(files)
+                .map(file -> new FileMetadata(
+                    file.getName(),
+                    buildFileDownloadUri(file.getName()),
+                    URLConnection.guessContentTypeFromName(file.getName()),
+                    file.length()))
+                .toList();
+    }
+
+
+    public Optional<Resource> loadFileAsResource(String filename) throws FileStorageException {
+        Path filePath = fileStorageLocation.resolve(filename).normalize();
+        try {
+            Resource resource = new UrlResource(filePath.toUri());
+            return resource.exists()
+                    ? Optional.of(resource)
+                    : Optional.empty();
+
+        } catch (MalformedURLException exception) {
+            log.error("An exception occurred while loading file {}: {}", filename, exception.getMessage());
+            throw new FileNotFoundException("File not found, invalid filename provided");
         }
     }
 

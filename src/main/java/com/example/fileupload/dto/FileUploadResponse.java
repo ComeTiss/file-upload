@@ -1,8 +1,6 @@
 package com.example.fileupload.dto;
 
-public record FileUploadResponse(
-        String filename,
-        String downloadUri,
-        String contentType,
-        long size) {
+import com.example.fileupload.service.FileMetadata;
+
+public record FileUploadResponse(FileMetadata file) {
 }
