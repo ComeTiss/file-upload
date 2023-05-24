@@ -25,7 +25,7 @@ public class FileDownloadController {
     @GetMapping("/{filename}")
     public ResponseEntity<Resource> uploadFile(@PathVariable String filename) {
         log.info("Request to download file: {}", filename);
-        Optional<Resource> resource = fileService.loadFileAsResource(filename);
+        Optional<Resource> resource = fileService.loadFile(filename);
         if (resource.isEmpty()) {
             throw new FileNotFoundException("File not found");
         }

@@ -1,11 +1,11 @@
 package com.example.fileupload.controllers;
 
 import com.example.fileupload.dto.ErrorResponse;
+import com.example.fileupload.dto.FileMetadata;
 import com.example.fileupload.dto.FileUploadResponse;
 import com.example.fileupload.dto.FilesUploadResponse;
 import com.example.fileupload.exceptions.FileStorageException;
 import com.example.fileupload.exceptions.InvalidFileException;
-import com.example.fileupload.service.FileMetadata;
 import com.example.fileupload.service.FileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;

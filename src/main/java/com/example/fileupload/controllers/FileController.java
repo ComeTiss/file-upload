@@ -1,6 +1,6 @@
 package com.example.fileupload.controllers;
 
-import com.example.fileupload.service.FileMetadata;
+import com.example.fileupload.dto.FileMetadata;
 import com.example.fileupload.service.FileService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +22,6 @@ public class FileController {
 
     @GetMapping
     public List<FileMetadata> getFiles(@RequestParam("file") MultipartFile file) {
-        return fileService.getAll();
+        return fileService.getFiles();
     }
 }

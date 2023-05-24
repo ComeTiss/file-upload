@@ -1,6 +1,7 @@
 package com.example.fileupload.service;
 
-import com.example.fileupload.configs.FileConfiguration;
+import com.example.fileupload.configs.FileStorageLocation;
+import com.example.fileupload.dto.FileMetadata;
 import com.example.fileupload.exceptions.FileNotFoundException;
 import com.example.fileupload.exceptions.FileStorageException;
 import com.example.fileupload.exceptions.InvalidFileException;
@@ -14,11 +15,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.net.MalformedURLException;
-import java.net.URLConnection;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,20 +29,8 @@ import java.util.concurrent.ExecutionException;
 @Service
 public class FileService {
 
-    private final Path fileStorageLocation;
-
     @Autowired
-    public FileService(FileConfiguration fileConfigurations) {
-        this.fileStorageLocation = Paths
-                .get(fileConfigurations.getFileStorageDirectory())
-                .toAbsolutePath().normalize();
-
-        try {
-            Files.createDirectories(this.fileStorageLocation);
-        } catch (Exception ex) {
-            throw new FileStorageException("Could not create the directory where the uploaded files will be stored.");
-        }
-    }
+    private FileStorageLocation fileStorageLocation;
 
     public FileMetadata storeFile(MultipartFile file) throws FileStorageException {
         if (isInvalid(file)) {
@@ -51,17 +38,11 @@ public class FileService {
         }
         try {
             String filenameClean = StringUtils.cleanPath(file.getOriginalFilename());
-            Path fileTargetLocation = fileStorageLocation.resolve(filenameClean);
-            Files.copy(file.getInputStream(), fileTargetLocation);
-
-            return new FileMetadata(
-                    file.getOriginalFilename(),
-                    buildFileDownloadUri(filenameClean),
-                    file.getContentType(),
-                    file.getSize()
-            );
+            Path fileTargetPath = buildFileTargetPath(filenameClean);
+            Files.copy(file.getInputStream(), fileTargetPath);
+            return new FileMetadata(file);
         } catch(FileAlreadyExistsException exception) {
-            throw new InvalidFileException("An exception occurred: the file already exists");
+            throw new InvalidFileException("An exception occurred while uploading file: the file already exists");
         } catch (Exception exception) {
             log.error("An exception occurred while uploading file: {}", exception.getMessage());
             throw new FileStorageException(exception.getMessage());
@@ -83,27 +64,13 @@ public class FileService {
                      })
                     .get();
         } catch (InterruptedException | ExecutionException exception) {
-            log.error("An error occurred while storing files in parallel: {}", exception.getMessage());
-            throw new FileStorageException("An error occurred while storing files in parallel");
+            log.error("An exception occurred while uploading files: {}", exception.getMessage());
+            throw new FileStorageException("An exception occurred while uploading files");
         }
     }
 
-    public List<FileMetadata> getAll() {
-        File fileStorage = new File(fileStorageLocation.toString());
-        File[] files = fileStorage.listFiles();
-
-        return Arrays.stream(files)
-                .map(file -> new FileMetadata(
-                    file.getName(),
-                    buildFileDownloadUri(file.getName()),
-                    URLConnection.guessContentTypeFromName(file.getName()),
-                    file.length()))
-                .toList();
-    }
-
-
-    public Optional<Resource> loadFileAsResource(String filename) throws FileStorageException {
-        Path filePath = fileStorageLocation.resolve(filename).normalize();
+    public Optional<Resource> loadFile(String filename) throws FileStorageException {
+        Path filePath = buildFileTargetPath(filename);
         try {
             Resource resource = new UrlResource(filePath.toUri());
             return resource.exists()
@@ -116,13 +83,26 @@ public class FileService {
         }
     }
 
+
+    public List<FileMetadata> getFiles() {
+        File fileStorage = new File(fileStoragePath().toString());
+
+        return Arrays.stream(fileStorage.listFiles())
+                .map(FileMetadata::new)
+                .toList();
+    }
+
     private boolean isInvalid(MultipartFile file) {
         return file == null
                 || file.getOriginalFilename() == null
                 || file.getOriginalFilename().isEmpty();
     }
 
-    private String buildFileDownloadUri(String filename) {
-        return "/api/download/" + filename;
+    private Path fileStoragePath() {
+        return fileStorageLocation.getPath();
+    }
+
+    private Path buildFileTargetPath(String filename) {
+        return fileStoragePath().resolve(filename).normalize();
     }
 }
